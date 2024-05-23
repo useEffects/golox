@@ -8,7 +8,7 @@ import (
 )
 
 type Interpreter struct {
-	hadError bool
+	HadError bool
 }
 
 func (i *Interpreter) RunFile(path string) error {
@@ -50,5 +50,5 @@ func (i *Interpreter) Error(line int, message string) {
 
 func (i *Interpreter) Report(line int, where, message string) {
 	log.Fatalln("[line", line, "] Error", where, ":", message)
-	i.hadError = true
+	i.HadError = true
 }
