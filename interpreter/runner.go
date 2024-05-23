@@ -11,13 +11,10 @@ type Interpreter struct {
 	HadError bool
 }
 
-func (i *Interpreter) RunFile(path string) error {
-	bytes, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
+func (i *Interpreter) RunFile(path string) {
+	bytes, _ := os.ReadFile(path)
 
-	return i.Run(string(bytes))
+	i.Run(string(bytes))
 }
 
 func (i *Interpreter) RunPrompt() {
@@ -34,14 +31,17 @@ func (i *Interpreter) RunPrompt() {
 			continue
 		}
 		line = line[:len(line)-1]
-		if err := i.Run(line); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
+		i.Run(line)
 	}
 }
 
-func (i *Interpreter) Run(source string) error {
-	return nil
+func (i *Interpreter) Run(source string) {
+	scanner := NewScanner(source)
+	tokens := scanner.ScanTokens()
+
+	for _, token := range tokens {
+		fmt.Println(token.ToString())
+	}
 }
 
 func (i *Interpreter) Error(line int, message string) {
