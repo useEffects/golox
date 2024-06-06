@@ -1,13 +1,13 @@
 package main
 
 import (
-	"golox/interpreter"
+	"golox/pkg/lox"
 	"log"
 	"os"
 )
 
 func main() {
-	interp := interpreter.Interpreter{}
+	interp := lox.Interpreter{}
 	if len(os.Args) > 1 {
 		log.Fatal("Usage: golox [script]")
 		os.Exit(64)
