@@ -1,27 +1,19 @@
 package main
 
 import (
-	"fmt"
 	"golox/pkg/lox"
+	"log"
+	"os"
 )
 
 func main() {
-	Test()
-}
-
-func CreateExpr() lox.Expr[string] {
-	return &lox.Binary[string]{
-		Left: &lox.Unary[string]{
-			Operator: lox.Token{Type: lox.MINUS, Lexeme: "-"},
-			Right:    &lox.Literal[string]{Value: 123},
-		},
-		Operator: lox.Token{Type: lox.STAR, Lexeme: "*"},
-		Right:    &lox.Grouping[string]{Expression: &lox.Literal[string]{Value: 45.67}},
+	interpreter := lox.Interpreter{}
+	if len(os.Args) > 1 {
+		log.Fatal("Usage: golox [script]")
+		os.Exit(64)
+	} else if len(os.Args) == 2 {
+		interpreter.RunFile(os.Args[1])
+	} else {
+		interpreter.RunPrompt()
 	}
-}
-
-func Test() {
-	expr := CreateExpr()
-	printer := lox.AstPrinter{}
-	fmt.Println(printer.Print(expr))
 }
