@@ -13,15 +13,15 @@ func main() {
 	}
 	outDir := os.Args[1]
 	defineAst(outDir, "Expr", []string{
-		"Binary   : Left Expr, Operator Token, Right Expr",
-		"Grouping : Expression Expr",
+		"Binary   : Left Expr[T], Operator Token, Right Expr[T]",
+		"Grouping : Expression Expr[T]",
 		"Literal  : Value interface{}",
-		"Unary    : Operator Token, Right Expr",
+		"Unary    : Operator Token, Right Expr[T]",
 	})
 }
 
 func defineAst(outputDir string, baseName string, types []string) {
-	path := outputDir + "/" + baseName + ".go"
+	path := outputDir + "/" + strings.ToLower(baseName) + ".go"
 	file, err := os.Create(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could not open file %s\n", path)
@@ -29,33 +29,41 @@ func defineAst(outputDir string, baseName string, types []string) {
 	}
 	defer file.Close()
 
-	file.WriteString("package " + baseName + "\n\n")
-	file.WriteString("type " + baseName + " struct {\n")
-	defineVisitor(file, baseName, types)
+	file.WriteString("package lox\n\n")
+	file.WriteString("// Expr represents an expression in the AST\n")
+	file.WriteString("type Expr[T any] interface {\n")
+	file.WriteString("\tvisit(visitor Visitor[T]) T\n")
 	file.WriteString("}\n\n")
+	defineVisitor(file, types)
+	file.WriteString("\n")
 	for _, t := range types {
-		structName := t[:strings.Index(t, ":")]
-		fields := t[strings.Index(t, ":")+1:]
+		structName := strings.TrimSpace(t[:strings.Index(t, ":")])
+		fields := strings.TrimSpace(t[strings.Index(t, ":")+1:])
 		defineType(file, structName, fields)
 	}
-	file.WriteString("\n")
-	file.WriteString("func (v " + baseName + ".Visitor) Accept(expr Expr) interface{} {}\n")
 }
 
 func defineType(file *os.File, structName string, fieldList string) {
-	file.WriteString("type " + structName + " struct {\n")
+	file.WriteString("// " + structName + " represents a " + strings.ToLower(structName) + " expression\n")
+	file.WriteString("type " + structName + "[T any] struct {\n")
 	fields := strings.Split(fieldList, ", ")
 	for _, field := range fields {
 		file.WriteString("\t" + field + "\n")
 	}
-	file.WriteString("}\n")
+	file.WriteString("}\n\n")
+
+	// Implement visit method for the struct
+	file.WriteString("func (e " + structName + "[T]) visit(visitor Visitor[T]) T {\n")
+	file.WriteString("\treturn visitor.Visit" + structName + "(e)\n")
+	file.WriteString("}\n\n")
 }
 
-func defineVisitor(file *os.File, baseName string, types []string) {
-	file.WriteString("\tVisitor struct {\n")
+func defineVisitor(file *os.File, types []string) {
+	file.WriteString("// Visitor defines the visitor interface for expression traversal\n")
+	file.WriteString("type Visitor[T any] interface {\n")
 	for _, t := range types {
-		typeName := t[:strings.Index(t, ":")]
-		file.WriteString("\tVisit" + typeName + " func(" + typeName + ") interface{}\n")
+		typeName := strings.TrimSpace(t[:strings.Index(t, ":")])
+		file.WriteString("\tVisit" + typeName + "(" + typeName + "[T]) T\n")
 	}
-	file.WriteString("\t}\n")
+	file.WriteString("}\n")
 }
