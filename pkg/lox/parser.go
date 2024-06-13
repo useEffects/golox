@@ -135,7 +135,7 @@ func (p *Parser[T]) consume(t TokenType, message string) Token {
 }
 
 func (p *Parser[T]) Error(token Token, message string) ParseError {
-	interpreter.Error(token.Line, message)
+	lox.Error(token.Line, message)
 	return ParseError{}
 }
 

@@ -1,6 +1,6 @@
 package lox
 
-var interp = Interpreter{}
+var interp = Lox{}
 
 type Scanner struct {
 	source   string

@@ -7,17 +7,17 @@ import (
 	"os"
 )
 
-type Interpreter struct {
+type Lox struct {
 	HadError bool
 }
 
-func (i *Interpreter) RunFile(path string) {
+func (i *Lox) RunFile(path string) {
 	bytes, _ := os.ReadFile(path)
 
 	i.Run(string(bytes))
 }
 
-func (i *Interpreter) RunPrompt() {
+func (i *Lox) RunPrompt() {
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
@@ -35,7 +35,7 @@ func (i *Interpreter) RunPrompt() {
 	}
 }
 
-func (i *Interpreter) Run(source string) {
+func (i *Lox) Run(source string) {
 	scanner := NewScanner(source)
 	tokens := scanner.ScanTokens()
 
@@ -49,7 +49,7 @@ func (i *Interpreter) Run(source string) {
 	fmt.Println(AstPrinter{}.Print(expression))
 }
 
-func (i *Interpreter) Error(param any, message string) {
+func (i *Lox) Error(param any, message string) {
 	switch p := param.(type) {
 	case int:
 		i.Report(p, "", message)
@@ -64,9 +64,9 @@ func (i *Interpreter) Error(param any, message string) {
 	}
 }
 
-func (i *Interpreter) Report(line int, where, message string) {
+func (i *Lox) Report(line int, where, message string) {
 	log.Fatalln("[line", line, "] Error", where, ":", message)
 	i.HadError = true
 }
 
-var interpreter = Interpreter{}
+var lox = Lox{}
