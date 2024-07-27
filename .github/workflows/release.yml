@@ -71,12 +71,12 @@ jobs:
     - name: Calculate next version
       id: vars
       run: |
-        # Get the latest tag
-        latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
+        # Get the latest tag, fallback to v0.1 if no tags are found
+        latest_tag=$(git describe --tags `git rev-list --tags --max-count=1` 2>/dev/null || echo "v0.0.0")
         echo "Latest tag: $latest_tag"
 
         # Extract the version number and increment it
-        if [[ -z "$latest_tag" ]]; then
+        if [[ "$latest_tag" == "v0.0.0" ]]; then
           next_version="v0.1"
         else
           next_version=$(echo $latest_tag | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')
