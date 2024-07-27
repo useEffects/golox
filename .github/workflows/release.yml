@@ -29,18 +29,18 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v2
       with:
-        go-version: '1.17'
+        go-version: '1.22.3'
 
     - name: Build binary
       run: |
         mkdir -p dist
-        GOOS=${{ matrix.GOOS }} GOARCH=${{ matrix.GOARCH }} go build -o dist/myapp-${{ matrix.GOOS }}-${{ matrix.GOARCH }}
+        GOOS=${{ matrix.GOOS }} GOARCH=${{ matrix.GOARCH }} go build -o dist/golox-${{ matrix.GOOS }}-${{ matrix.GOARCH }}
 
     - name: Upload binary
       uses: actions/upload-artifact@v2
       with:
-        name: myapp-${{ matrix.GOOS }}-${{ matrix.GOARCH }}
-        path: dist/myapp-${{ matrix.GOOS }}-${{ matrix.GOARCH }}
+        name: golox-${{ matrix.GOOS }}-${{ matrix.GOARCH }}
+        path: dist/golox-${{ matrix.GOOS }}-${{ matrix.GOARCH }}
 
   release:
     needs: build
@@ -53,6 +53,11 @@ jobs:
       run: |
         git config --global user.name 'github-actions'
         git config --global user.email 'github-actions@github.com'
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: '1.22.3'
 
     - name: Calculate next version
       id: vars
@@ -81,10 +86,10 @@ jobs:
         draft: false
         prerelease: false
 
-    - name: Download binaries
+    - name: Download Linux binary
       uses: actions/download-artifact@v2
       with:
-        name: myapp-linux-amd64
+        name: golox-linux-amd64
         path: dist/
 
     - name: Upload Linux binary to release
@@ -93,14 +98,14 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: dist/myapp-linux-amd64
-        asset_name: myapp-linux-amd64
+        asset_path: dist/golox-linux-amd64
+        asset_name: golox-linux-amd64
         asset_content_type: application/octet-stream
 
-    - name: Download binaries
+    - name: Download Windows binary
       uses: actions/download-artifact@v2
       with:
-        name: myapp-windows-amd64
+        name: golox-windows-amd64
         path: dist/
 
     - name: Upload Windows binary to release
@@ -109,14 +114,14 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: dist/myapp-windows-amd64
-        asset_name: myapp-windows-amd64
+        asset_path: dist/golox-windows-amd64
+        asset_name: golox-windows-amd64
         asset_content_type: application/octet-stream
 
-    - name: Download binaries
+    - name: Download macOS binary
       uses: actions/download-artifact@v2
       with:
-        name: myapp-darwin-amd64
+        name: golox-darwin-amd64
         path: dist/
 
     - name: Upload macOS binary to release
@@ -125,6 +130,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: dist/myapp-darwin-amd64
-        asset_name: myapp-darwin-amd64
+        asset_path: dist/golox-darwin-amd64
+        asset_name: golox-darwin-amd64
         asset_content_type: application/octet-stream
+
