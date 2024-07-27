@@ -3,7 +3,7 @@ name: Build and Release Binaries
 on:
   push:
     branches:
-      - main
+      - main  # Trigger the workflow on push to the main branch
 
 jobs:
   build:
@@ -31,10 +31,19 @@ jobs:
       with:
         go-version: '1.22.3'
 
-    - name: Build binary
+    - name: Build binary (Linux and macOS)
+      if: runner.os != 'Windows'
       run: |
         mkdir -p dist
         GOOS=${{ matrix.GOOS }} GOARCH=${{ matrix.GOARCH }} go build -o dist/golox-${{ matrix.GOOS }}-${{ matrix.GOARCH }}
+
+    - name: Build binary (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        mkdir dist
+        $env:GOOS="${{ matrix.GOOS }}"
+        $env:GOARCH="${{ matrix.GOARCH }}"
+        go build -o dist/golox-${{ matrix.GOOS }}-${{ matrix.GOARCH }}
 
     - name: Upload binary
       uses: actions/upload-artifact@v2
@@ -133,4 +142,3 @@ jobs:
         asset_path: dist/golox-darwin-amd64
         asset_name: golox-darwin-amd64
         asset_content_type: application/octet-stream
-
