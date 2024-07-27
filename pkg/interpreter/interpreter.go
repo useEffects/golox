@@ -15,7 +15,7 @@ type interpreter struct {
 }
 
 func NewInterpreter() *interpreter {
-	env := &environment{map[string]interface{}{}}
+	env := &environment{nil, map[string]interface{}{}}
 	return &interpreter{env}
 }
 
@@ -61,6 +61,40 @@ func (i *interpreter) VisitVarStmt(v *ast.VarStmt) interface{} {
 	}
 
 	i.env.define(v.Name.Lexeme, value)
+	return nil
+}
+
+func (i *interpreter) VisitBlockStmt(b *ast.BlockStmt) interface{} {
+	prev := i.env
+
+	defer func() {
+		i.env = prev
+	}()
+
+	i.env = &environment{prev, map[string]interface{}{}}
+	for _, stmt := range b.Statements {
+		stmt.Accept(i)
+	}
+
+	return nil
+}
+
+func (i *interpreter) VisitIfStmt(i_ *ast.IfStmt) interface{} {
+	value := i_.Condition.Accept(i)
+	if isTruthy(value) {
+		i_.ThenBranch.Accept(i)
+	} else if i_.ElseBranch != nil {
+		i_.ElseBranch.Accept(i)
+	}
+
+	return nil
+}
+
+func (i *interpreter) VisitWhileStmt(w *ast.WhileStmt) interface{} {
+	for isTruthy(w.Condition.Accept(i)) {
+		w.Body.Accept(i)
+	}
+
 	return nil
 }
 
@@ -156,6 +190,16 @@ func (i *interpreter) VisitAssignExpr(a *ast.AssignExpr) interface{} {
 	return value
 }
 
+func (i *interpreter) VisitLogicalExpr(l *ast.LogicalExpr) interface{} {
+	left := l.Left.Accept(i)
+
+	if (l.Operator.TokenType == scanner.OR && isTruthy(left)) || !isTruthy(left) {
+		return left
+	}
+
+	return l.Right.Accept(i)
+}
+
 func (i *interpreter) checkNumberOperands(operator *scanner.Token, left interface{}, right interface{}) (float64, float64) {
 	if leftValue, leftOk := left.(float64); leftOk {
 		if rightValue, rightOk := right.(float64); rightOk {
@@ -164,4 +208,16 @@ func (i *interpreter) checkNumberOperands(operator *scanner.Token, left interfac
 	}
 
 	panic(fault.NewFault(operator.Line, "operands must be numbers"))
+}
+
+func isTruthy(value interface{}) bool {
+	if value == nil {
+		return false
+	}
+
+	if boolean, ok := value.(bool); ok {
+		return boolean
+	}
+
+	return true
 }
