@@ -8,13 +8,22 @@ import (
 )
 
 type Lox struct {
-	HadError bool
+	HadError        bool
+	HadRuntimeError bool
+	interpreter     Interpreter[string]
 }
 
 func (i *Lox) RunFile(path string) {
 	bytes, _ := os.ReadFile(path)
 
 	i.Run(string(bytes))
+
+	if i.HadError {
+		os.Exit(65)
+	}
+	if i.HadRuntimeError {
+		os.Exit(70)
+	}
 }
 
 func (i *Lox) RunPrompt() {
@@ -46,7 +55,8 @@ func (i *Lox) Run(source string) {
 		return
 	}
 
-	fmt.Println(AstPrinter{}.Print(expression))
+	// fmt.Println(AstPrinter{}.Print(expression))
+	i.interpreter.Interpret(expression)
 }
 
 func (i *Lox) Error(param any, message string) {
@@ -62,6 +72,11 @@ func (i *Lox) Error(param any, message string) {
 	default:
 		panic("Invalid parameter type")
 	}
+}
+
+func (i *Lox) RuntimeError(error *RuntimeError) {
+	fmt.Fprintln(os.Stderr, error.Message, "\n[line", error.Token.Line, "]")
+	i.HadRuntimeError = true
 }
 
 func (i *Lox) Report(line int, where, message string) {

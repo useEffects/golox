@@ -8,7 +8,7 @@ import (
 type AstPrinter struct{}
 
 func (p AstPrinter) Print(expr Expr[string]) string {
-	return expr.visit(p)
+	return expr.accept(p)
 }
 
 func (p AstPrinter) VisitBinary(expr Binary[string]) string {
@@ -36,7 +36,7 @@ func parenthesize(name string, exprs ...Expr[string]) string {
 	builder.WriteString(name)
 	for _, expr := range exprs {
 		builder.WriteString(" ")
-		builder.WriteString(expr.visit(&AstPrinter{}))
+		builder.WriteString(expr.accept(&AstPrinter{}))
 	}
 	builder.WriteString(")")
 	return builder.String()

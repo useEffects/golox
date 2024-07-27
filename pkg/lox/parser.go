@@ -131,7 +131,7 @@ func (p *Parser[T]) consume(t TokenType, message string) Token {
 	if p.check(t) {
 		return p.advance()
 	}
-	panic([]interface{}{p.peek(), message})
+	panic([]any{p.peek(), message})
 }
 
 func (p *Parser[T]) Error(token Token, message string) ParseError {
