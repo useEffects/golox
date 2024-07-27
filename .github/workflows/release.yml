@@ -1,0 +1,130 @@
+name: Build and Release Binaries
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            GOOS: linux
+            GOARCH: amd64
+          - os: windows-latest
+            GOOS: windows
+            GOARCH: amd64
+          - os: macos-latest
+            GOOS: darwin
+            GOARCH: amd64
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: '1.17'
+
+    - name: Build binary
+      run: |
+        mkdir -p dist
+        GOOS=${{ matrix.GOOS }} GOARCH=${{ matrix.GOARCH }} go build -o dist/myapp-${{ matrix.GOOS }}-${{ matrix.GOARCH }}
+
+    - name: Upload binary
+      uses: actions/upload-artifact@v2
+      with:
+        name: myapp-${{ matrix.GOOS }}-${{ matrix.GOARCH }}
+        path: dist/myapp-${{ matrix.GOOS }}-${{ matrix.GOARCH }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Git
+      run: |
+        git config --global user.name 'github-actions'
+        git config --global user.email 'github-actions@github.com'
+
+    - name: Calculate next version
+      id: vars
+      run: |
+        # Get the latest tag
+        latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
+        echo "Latest tag: $latest_tag"
+
+        # Extract the version number and increment it
+        if [[ -z "$latest_tag" ]]; then
+          next_version="v0.1"
+        else
+          next_version=$(echo $latest_tag | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')
+        fi
+
+        echo "Next version: $next_version"
+        echo "version=$next_version" >> $GITHUB_ENV
+
+    - name: Create Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ env.version }}
+        release_name: Release ${{ env.version }}
+        draft: false
+        prerelease: false
+
+    - name: Download binaries
+      uses: actions/download-artifact@v2
+      with:
+        name: myapp-linux-amd64
+        path: dist/
+
+    - name: Upload Linux binary to release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: dist/myapp-linux-amd64
+        asset_name: myapp-linux-amd64
+        asset_content_type: application/octet-stream
+
+    - name: Download binaries
+      uses: actions/download-artifact@v2
+      with:
+        name: myapp-windows-amd64
+        path: dist/
+
+    - name: Upload Windows binary to release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: dist/myapp-windows-amd64
+        asset_name: myapp-windows-amd64
+        asset_content_type: application/octet-stream
+
+    - name: Download binaries
+      uses: actions/download-artifact@v2
+      with:
+        name: myapp-darwin-amd64
+        path: dist/
+
+    - name: Upload macOS binary to release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: dist/myapp-darwin-amd64
+        asset_name: myapp-darwin-amd64
+        asset_content_type: application/octet-stream
