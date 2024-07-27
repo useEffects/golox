@@ -8,3 +8,4 @@ https://craftinginterpreters.com/
 - [x] Representing Code
 - [x] Parsing Expressions
 - [x] Evaluating Expressions
+- [x] Statements and State
