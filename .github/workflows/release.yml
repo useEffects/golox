@@ -68,6 +68,24 @@ jobs:
       with:
         go-version: '1.22.3'
 
+    - name: Download Linux binary artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: golox-linux-amd64
+        path: dist
+
+    - name: Download Windows binary artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: golox-windows-amd64
+        path: dist
+
+    - name: Download macOS binary artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: golox-darwin-amd64
+        path: dist
+
     - name: Calculate next version
       id: vars
       run: |
@@ -140,3 +158,4 @@ jobs:
         asset_path: dist/golox-darwin-amd64
         asset_name: golox-darwin-amd64
         asset_content_type: application/octet-stream
+
