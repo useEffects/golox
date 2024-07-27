@@ -88,7 +88,7 @@ jobs:
     - name: Create Release
       uses: actions/create-release@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.PAT }}  # Use the PAT instead of the default GITHUB_TOKEN
       with:
         tag_name: ${{ env.version }}
         release_name: Release ${{ env.version }}
@@ -104,7 +104,7 @@ jobs:
     - name: Upload Linux binary to release
       uses: actions/upload-release-asset@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.PAT }}  # Use the PAT instead of the default GITHUB_TOKEN
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: dist/golox-linux-amd64
@@ -120,7 +120,7 @@ jobs:
     - name: Upload Windows binary to release
       uses: actions/upload-release-asset@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.PAT }}  # Use the PAT instead of the default GITHUB_TOKEN
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: dist/golox-windows-amd64
@@ -136,9 +136,10 @@ jobs:
     - name: Upload macOS binary to release
       uses: actions/upload-release-asset@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.PAT }}  # Use the PAT instead of the default GITHUB_TOKEN
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: dist/golox-darwin-amd64
         asset_name: golox-darwin-amd64
         asset_content_type: application/octet-stream
+
