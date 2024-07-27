@@ -1,19 +1,74 @@
 package main
 
 import (
-	"golox/pkg/lox"
+	"bufio"
+	"fmt"
 	"log"
 	"os"
+
+	"golox/pkg/ast"
+	"golox/pkg/interpreter"
+	"golox/pkg/scanner"
 )
 
 func main() {
-	interpreter := lox.Lox{}
 	if len(os.Args) > 2 {
-		log.Fatal("Usage: golox [script]")
-		os.Exit(64)
+		log.Fatal("Usage golox [script]")
 	} else if len(os.Args) == 2 {
-		interpreter.RunFile(os.Args[1])
+		runFile(os.Args[1])
 	} else {
-		interpreter.RunPrompt()
+		runPrompt()
 	}
+}
+
+func runFile(path string) {
+	bytes, err := os.ReadFile(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	result := run(string(bytes))
+	if result == 1 {
+		os.Exit(65)
+	}
+	if result == 2 {
+		os.Exit(70)
+	}
+}
+
+func runPrompt() {
+	scanner := bufio.NewScanner(os.Stdin)
+	fmt.Print("> ")
+	for scanner.Scan() {
+		text := scanner.Text()
+		run(text)
+		fmt.Print("> ")
+	}
+
+	if err := scanner.Err(); err == nil {
+		fmt.Println("bye")
+		os.Exit(0)
+	}
+}
+
+func run(source string) int {
+	scanner := scanner.NewScanner(source)
+	scanner.ScanTokens()
+	if scanner.Error {
+		return 1
+	}
+
+	parser := ast.NewParser(scanner.Tokens)
+	expr := parser.Parse()
+	if parser.Error {
+		return 1
+	}
+
+	interpreter := interpreter.NewInterpreter()
+	interpreter.Interpret(expr)
+	if interpreter.Error {
+		return 2
+	}
+
+	return 0
 }

@@ -5,3 +5,4 @@ https://craftinginterpreters.com/
 - [x] Scanner
 - [x] Representing Code
 - [x] Parsing Expressions
+- [x] Evaluating Expressions
