@@ -10,3 +10,4 @@ https://craftinginterpreters.com/
 - [x] Evaluating Expressions
 - [x] Statements and State
 - [x] Control Flow
+- [x] Functions

@@ -10,11 +10,12 @@ import (
 type parser struct {
 	tokens  []scanner.Token
 	current int
+	fdepth  int
 	err     error
 }
 
 func NewParser(tokens []scanner.Token) *parser {
-	return &parser{tokens, 0, nil}
+	return &parser{tokens, 0, 0, nil}
 }
 
 func (p *parser) Parse() ([]Stmt, error) {
@@ -34,10 +35,14 @@ func (p *parser) declaration() Stmt {
 		return p.varDeclaration()
 	}
 
+	if p.match(scanner.FUN) {
+		return p.funDeclaration("function")
+	}
+
 	return p.statement()
 }
 
-func (p *parser) varDeclaration() Stmt {
+func (p *parser) varDeclaration() *VarStmt {
 	if !p.match(scanner.IDENTIFIER) {
 		panic(fault.NewFault(p.tokens[p.current].Line, "expected variable name"))
 	}
@@ -53,6 +58,51 @@ func (p *parser) varDeclaration() Stmt {
 	}
 
 	return &VarStmt{&name, initializer}
+}
+
+func (p *parser) funDeclaration(kind string) *FunStmt {
+	if !p.match(scanner.IDENTIFIER) {
+		message := fmt.Sprintf("expected %s name", kind)
+		panic(fault.NewFault(p.tokens[p.current].Line, message))
+	}
+	name := p.tokens[p.current-1]
+
+	if !p.match(scanner.LEFT_PAREN) {
+		message := fmt.Sprintf("expected '(' after %s name", kind)
+		panic(fault.NewFault(p.tokens[p.current].Line, message))
+	}
+
+	params := []*scanner.Token{}
+	if p.tokens[p.current].TokenType != scanner.RIGHT_PAREN && p.tokens[p.current].TokenType != scanner.EOF {
+		if !p.match(scanner.IDENTIFIER) {
+			message := fmt.Sprintf("expected parameter name at %s", p.tokens[p.current].Lexeme)
+			panic(fault.NewFault(p.tokens[p.current].Line, message))
+		}
+		params = append(params, &p.tokens[p.current-1])
+		for p.match(scanner.COMMA) {
+			if !p.match(scanner.IDENTIFIER) {
+				message := fmt.Sprintf("expected parameter name at %s", p.tokens[p.current].Lexeme)
+				panic(fault.NewFault(p.tokens[p.current].Line, message))
+			}
+			params = append(params, &p.tokens[p.current-1])
+			if len(params) > 255 {
+				panic(fault.NewFault(p.tokens[p.current].Line, "cannot have more than 255 parameters"))
+			}
+		}
+	}
+
+	if !p.match(scanner.RIGHT_PAREN) {
+		panic(fault.NewFault(p.tokens[p.current].Line, "expected ')' after parameter list"))
+	}
+
+	if !p.match(scanner.LEFT_BRACE) {
+		message := fmt.Sprintf("expected '{' before %s body", kind)
+		panic(fault.NewFault(p.tokens[p.current].Line, message))
+	}
+
+	p.fdepth++
+	defer func() { p.fdepth-- }()
+	return &FunStmt{&name, params, p.blockStatement()}
 }
 
 func (p *parser) statement() Stmt {
@@ -73,13 +123,17 @@ func (p *parser) statement() Stmt {
 	}
 
 	if p.match(scanner.LEFT_BRACE) {
-		return &BlockStmt{p.block()}
+		return p.blockStatement()
+	}
+
+	if p.match(scanner.RETURN) {
+		return p.returnStatement()
 	}
 
 	return p.exprStatement()
 }
 
-func (p *parser) printStatement() Stmt {
+func (p *parser) printStatement() *PrintStmt {
 	expr := p.expression()
 
 	if !p.match(scanner.SEMICOLON) {
@@ -89,7 +143,7 @@ func (p *parser) printStatement() Stmt {
 	return &PrintStmt{expr}
 }
 
-func (p *parser) ifStatement() Stmt {
+func (p *parser) ifStatement() *IfStmt {
 	if !p.match(scanner.LEFT_PAREN) {
 		panic(fault.NewFault(p.tokens[p.current].Line, "expected '(' after if"))
 	}
@@ -123,7 +177,7 @@ func (p *parser) forStatement() Stmt {
 	}
 
 	var condition Expr
-	if p.tokens[p.current].TokenType != scanner.EOF && p.tokens[p.current].TokenType != scanner.SEMICOLON {
+	if p.tokens[p.current].TokenType != scanner.SEMICOLON && p.tokens[p.current].TokenType != scanner.EOF {
 		condition = p.expression()
 	}
 	if !p.match(scanner.SEMICOLON) {
@@ -131,7 +185,7 @@ func (p *parser) forStatement() Stmt {
 	}
 
 	var increment Expr
-	if p.tokens[p.current].TokenType != scanner.EOF && p.tokens[p.current].TokenType != scanner.RIGHT_PAREN {
+	if p.tokens[p.current].TokenType != scanner.RIGHT_PAREN && p.tokens[p.current].TokenType != scanner.EOF {
 		increment = p.expression()
 	}
 	if !p.match(scanner.RIGHT_PAREN) {
@@ -156,7 +210,7 @@ func (p *parser) forStatement() Stmt {
 	return body
 }
 
-func (p *parser) whileStatement() Stmt {
+func (p *parser) whileStatement() *WhileStmt {
 	if !p.match(scanner.LEFT_PAREN) {
 		panic(fault.NewFault(p.tokens[p.current].Line, "expected '(' after while"))
 	}
@@ -169,10 +223,10 @@ func (p *parser) whileStatement() Stmt {
 	return &WhileStmt{condition, p.statement()}
 }
 
-func (p *parser) block() []Stmt {
+func (p *parser) blockStatement() *BlockStmt {
 	stmts := []Stmt{}
 
-	for p.tokens[p.current].TokenType != scanner.EOF && p.tokens[p.current].TokenType != scanner.RIGHT_BRACE {
+	for p.tokens[p.current].TokenType != scanner.RIGHT_BRACE && p.tokens[p.current].TokenType != scanner.EOF {
 		stmts = append(stmts, p.declaration())
 	}
 
@@ -180,10 +234,10 @@ func (p *parser) block() []Stmt {
 		panic(fault.NewFault(p.tokens[p.current].Line, "expected '}' after block"))
 	}
 
-	return stmts
+	return &BlockStmt{stmts}
 }
 
-func (p *parser) exprStatement() Stmt {
+func (p *parser) exprStatement() *ExprStmt {
 	expr := p.expression()
 
 	if !p.match(scanner.SEMICOLON) {
@@ -191,6 +245,24 @@ func (p *parser) exprStatement() Stmt {
 	}
 
 	return &ExprStmt{expr}
+}
+
+func (p *parser) returnStatement() *ReturnStmt {
+	keyword := p.tokens[p.current-1]
+	if p.fdepth == 0 {
+		panic(fault.NewFault(keyword.Line, "cannot return outside of a function"))
+	}
+
+	var value Expr
+	if p.tokens[p.current].TokenType != scanner.SEMICOLON && p.tokens[p.current].TokenType != scanner.EOF {
+		value = p.expression()
+	}
+
+	if !p.match(scanner.SEMICOLON) {
+		panic(fault.NewFault(p.tokens[p.current].Line, "expected ';' after return statement"))
+	}
+
+	return &ReturnStmt{&keyword, value}
 }
 
 func (p *parser) expression() Expr {
@@ -293,7 +365,37 @@ func (p *parser) unary() Expr {
 		return &UnaryExpr{&operator, right}
 	}
 
-	return p.primary()
+	return p.call()
+}
+
+func (p *parser) call() Expr {
+	expr := p.primary()
+
+	for p.match(scanner.LEFT_PAREN) {
+		args, paren := p.arguments()
+		expr = &CallExpr{expr, paren, args}
+	}
+
+	return expr
+}
+
+func (p *parser) arguments() ([]Expr, scanner.Token) {
+	args := []Expr{}
+	if p.tokens[p.current].TokenType != scanner.RIGHT_PAREN && p.tokens[p.current].TokenType != scanner.EOF {
+		args = append(args, p.expression())
+		for p.match(scanner.COMMA) {
+			args = append(args, p.expression())
+			if len(args) > 255 {
+				panic(fault.NewFault(p.tokens[p.current].Line, "cannot have more than 255 arguments"))
+			}
+		}
+	}
+
+	if !p.match(scanner.RIGHT_PAREN) {
+		panic(fault.NewFault(p.tokens[p.current].Line, "expected ')' after argument list"))
+	}
+
+	return args, p.tokens[p.current-1]
 }
 
 func (p *parser) primary() Expr {
@@ -321,26 +423,25 @@ func (p *parser) primary() Expr {
 
 	if p.match(scanner.LEFT_PAREN) {
 		e := p.expression()
-		if p.tokens[p.current].TokenType != scanner.RIGHT_PAREN {
-			message := fmt.Sprintf("expected ')' after \"%s\"", p.tokens[p.current].Lexeme)
+		if !p.match(scanner.RIGHT_PAREN) {
+			message := fmt.Sprintf("expected ')' after '%s'", p.tokens[p.current-1].Lexeme)
 			panic(fault.NewFault(p.tokens[p.current].Line, message))
 		}
-		p.current++
 		return &GroupingExpr{e}
 	}
 
-	message := fmt.Sprintf("expected expression at \"%s\"", p.tokens[p.current].Lexeme)
+	message := fmt.Sprintf("expected expression at '%s'", p.tokens[p.current].Lexeme)
 	panic(fault.NewFault(p.tokens[p.current].Line, message))
 }
 
 func (p *parser) match(types ...int) bool {
-	if p.tokens[p.current].TokenType == scanner.EOF {
+	currentType := p.tokens[p.current].TokenType
+	if currentType == scanner.EOF {
 		return false
 	}
 
-	actualType := p.tokens[p.current].TokenType
 	for _, tokenType := range types {
-		if actualType == tokenType {
+		if currentType == tokenType {
 			p.current++
 			return true
 		}
