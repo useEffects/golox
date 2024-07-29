@@ -1,7 +1,6 @@
-package ast
+package parser
 
 import "golox/pkg/scanner"
-
 
 type Expr interface {
 	Accept(v ExprVisitor) interface{}

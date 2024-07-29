@@ -11,3 +11,4 @@ https://craftinginterpreters.com/
 - [x] Statements and State
 - [x] Control Flow
 - [x] Functions
+- [x] Resolving and Binding
