@@ -12,3 +12,4 @@ https://craftinginterpreters.com/
 - [x] Control Flow
 - [x] Functions
 - [x] Resolving and Binding
+- [x] Classes

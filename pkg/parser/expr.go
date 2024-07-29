@@ -2,6 +2,7 @@ package parser
 
 import "golox/pkg/scanner"
 
+
 type Expr interface {
 	Accept(v ExprVisitor) interface{}
 }
@@ -76,4 +77,31 @@ type CallExpr struct {
 
 func (c *CallExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitCallExpr(c)
+}
+
+type GetExpr struct {
+	Object Expr
+	Name   *scanner.Token
+}
+
+func (g *GetExpr) Accept(v ExprVisitor) interface{} {
+	return v.VisitGetExpr(g)
+}
+
+type SetExpr struct {
+	Object Expr
+	Name   *scanner.Token
+	Value  Expr
+}
+
+func (s *SetExpr) Accept(v ExprVisitor) interface{} {
+	return v.VisitSetExpr(s)
+}
+
+type ThisExpr struct {
+	Keyword *scanner.Token
+}
+
+func (t *ThisExpr) Accept(v ExprVisitor) interface{} {
+	return v.VisitThisExpr(t)
 }
