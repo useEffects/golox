@@ -2,6 +2,7 @@ package parser
 
 import "golox/pkg/scanner"
 
+
 type Stmt interface {
 	Accept(v StmtVisitor) interface{}
 }
@@ -79,6 +80,7 @@ func (r *ReturnStmt) Accept(v StmtVisitor) interface{} {
 
 type ClassStmt struct {
 	Name    *scanner.Token
+	Super   *VariableExpr
 	Methods []*FunStmt
 }
 

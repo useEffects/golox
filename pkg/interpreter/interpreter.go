@@ -9,6 +9,7 @@ import (
 	"golox/pkg/scanner"
 )
 
+
 type Interpreter struct {
 	global  *environment
 	current *environment
@@ -70,9 +71,7 @@ func (i *Interpreter) VisitVarStmt(v *parser.VarStmt) interface{} {
 
 func (i *Interpreter) VisitBlockStmt(b *parser.BlockStmt) interface{} {
 	prev := i.current
-	defer func() {
-		i.current = prev
-	}()
+	defer func() { i.current = prev }()
 
 	i.current = &environment{prev, make(map[string]interface{})}
 	for _, stmt := range b.Statements {
@@ -117,7 +116,22 @@ func (i *Interpreter) VisitReturnStmt(v *parser.ReturnStmt) interface{} {
 }
 
 func (i *Interpreter) VisitClassStmt(c *parser.ClassStmt) interface{} {
+	var super *class
+	if c.Super != nil {
+		if value, ok := c.Super.Accept(i).(*class); ok {
+			super = value
+		} else {
+			message := fmt.Sprintf("%s is a not a class", c.Super.Name.Lexeme)
+			panic(fault.NewFault(c.Super.Name.Line, message))
+		}
+	}
+
 	i.current.define(c.Name.Lexeme, nil)
+	if c.Super != nil {
+		i.current = &environment{i.current, make(map[string]interface{})}
+		i.current.define("super", super)
+	}
+
 	methods := make(map[string]*function)
 	for _, method := range c.Methods {
 		if method.Name.Lexeme == "init" {
@@ -127,14 +141,18 @@ func (i *Interpreter) VisitClassStmt(c *parser.ClassStmt) interface{} {
 		}
 	}
 
-	i.current.assign(c.Name, &class{c.Name.Lexeme, methods})
+	c_ := &class{c.Name.Lexeme, super, methods}
+	if c.Super != nil {
+		i.current = i.current.enclosing
+	}
+
+	i.current.assign(c.Name, c_)
 	return nil
 }
 
 func (i *Interpreter) VisitBinaryExpr(b *parser.BinaryExpr) interface{} {
 	left := b.Left.Accept(i)
 	right := b.Right.Accept(i)
-
 	switch b.Operator.TokenType {
 	case scanner.BANG_EQUAL:
 		return left != right
@@ -190,7 +208,6 @@ func (i *Interpreter) VisitLiteralExpr(l *parser.LiteralExpr) interface{} {
 
 func (i *Interpreter) VisitUnaryExpr(u *parser.UnaryExpr) interface{} {
 	right := u.Right.Accept(i)
-
 	if u.Operator.TokenType == scanner.MINUS {
 		if value, ok := right.(float64); ok {
 			return -value
@@ -223,7 +240,6 @@ func (i *Interpreter) VisitVariableExpr(v *parser.VariableExpr) interface{} {
 
 func (i *Interpreter) VisitAssignExpr(a *parser.AssignExpr) interface{} {
 	value := a.Value.Accept(i)
-
 	if dist, ok := i.locals[a]; ok {
 		i.current.assignAt(a.Name.Lexeme, value, dist)
 	} else {
@@ -235,7 +251,6 @@ func (i *Interpreter) VisitAssignExpr(a *parser.AssignExpr) interface{} {
 
 func (i *Interpreter) VisitLogicalExpr(l *parser.LogicalExpr) interface{} {
 	left := l.Left.Accept(i)
-
 	if (l.Operator.TokenType == scanner.OR && isTruthy(left)) || !isTruthy(left) {
 		return left
 	}
@@ -288,6 +303,19 @@ func (i *Interpreter) VisitThisExpr(t *parser.ThisExpr) interface{} {
 	}
 
 	return i.global.get(t.Keyword)
+}
+
+func (i *Interpreter) VisitSuperExpr(s *parser.SuperExpr) interface{} {
+	dist := i.locals[s]
+	super := i.current.getAt("super", dist).(*class)
+	object := i.current.getAt("this", dist-1).(*instance)
+	method := super.findMethod(s.Method.Lexeme)
+	if method == nil {
+		message := fmt.Sprintf("undefined property '%s'", s.Method.Lexeme)
+		panic(fault.NewFault(s.Method.Line, message))
+	}
+
+	return method.bind(object)
 }
 
 func (i *Interpreter) checkNumberOperands(operator *scanner.Token, left interface{}, right interface{}) (float64, float64) {

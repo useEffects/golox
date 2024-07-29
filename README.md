@@ -13,3 +13,4 @@ https://craftinginterpreters.com/
 - [x] Functions
 - [x] Resolving and Binding
 - [x] Classes
+- [x] Inheritance

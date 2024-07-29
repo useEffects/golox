@@ -19,7 +19,6 @@ func NewParser(tokens []scanner.Token) *Parser {
 
 func (p *Parser) Parse() ([]Stmt, error) {
 	stmts := []Stmt{}
-
 	for p.tokens[p.current].TokenType != scanner.EOF {
 		stmts = append(stmts, p.declaration())
 	}
@@ -112,6 +111,15 @@ func (p *Parser) classDeclaration() *ClassStmt {
 	}
 	name := p.tokens[p.current-1]
 
+	var super *VariableExpr
+	if p.match(scanner.LESS) {
+		if !p.match(scanner.IDENTIFIER) {
+			panic(fault.NewFault(p.tokens[p.current].Line, "expected superclass name after '<'"))
+		}
+		superName := p.tokens[p.current-1]
+		super = &VariableExpr{&superName}
+	}
+
 	if !p.match(scanner.LEFT_BRACE) {
 		panic(fault.NewFault(p.tokens[p.current].Line, "expected '{' before class body"))
 	}
@@ -125,7 +133,7 @@ func (p *Parser) classDeclaration() *ClassStmt {
 		panic(fault.NewFault(p.tokens[p.current].Line, "expected '}' after class body"))
 	}
 
-	return &ClassStmt{&name, methods}
+	return &ClassStmt{&name, super, methods}
 }
 
 func (p *Parser) statement() Stmt {
@@ -158,7 +166,6 @@ func (p *Parser) statement() Stmt {
 
 func (p *Parser) printStatement() *PrintStmt {
 	expr := p.expression()
-
 	if !p.match(scanner.SEMICOLON) {
 		panic(fault.NewFault(p.tokens[p.current].Line, "expected ';' after print statement"))
 	}
@@ -248,7 +255,6 @@ func (p *Parser) whileStatement() *WhileStmt {
 
 func (p *Parser) blockStatement() *BlockStmt {
 	stmts := []Stmt{}
-
 	for p.tokens[p.current].TokenType != scanner.RIGHT_BRACE && p.tokens[p.current].TokenType != scanner.EOF {
 		stmts = append(stmts, p.declaration())
 	}
@@ -262,7 +268,6 @@ func (p *Parser) blockStatement() *BlockStmt {
 
 func (p *Parser) exprStatement() *ExprStmt {
 	expr := p.expression()
-
 	if !p.match(scanner.SEMICOLON) {
 		panic(fault.NewFault(p.tokens[p.current].Line, "expected ';' after expression statement"))
 	}
@@ -272,7 +277,6 @@ func (p *Parser) exprStatement() *ExprStmt {
 
 func (p *Parser) returnStatement() *ReturnStmt {
 	keyword := p.tokens[p.current-1]
-
 	var value Expr
 	if p.tokens[p.current].TokenType != scanner.SEMICOLON && p.tokens[p.current].TokenType != scanner.EOF {
 		value = p.expression()
@@ -291,7 +295,6 @@ func (p *Parser) expression() Expr {
 
 func (p *Parser) assignment() Expr {
 	expr := p.or()
-
 	if p.match(scanner.EQUAL) {
 		equals := p.tokens[p.current-1]
 		value := p.assignment()
@@ -312,7 +315,6 @@ func (p *Parser) assignment() Expr {
 
 func (p *Parser) or() Expr {
 	left := p.and()
-
 	for p.match(scanner.OR) {
 		operator := p.tokens[p.current-1]
 		right := p.and()
@@ -324,7 +326,6 @@ func (p *Parser) or() Expr {
 
 func (p *Parser) and() Expr {
 	left := p.equality()
-
 	for p.match(scanner.AND) {
 		operator := p.tokens[p.current-1]
 		right := p.equality()
@@ -336,7 +337,6 @@ func (p *Parser) and() Expr {
 
 func (p *Parser) equality() Expr {
 	left := p.comparison()
-
 	for p.match(scanner.BANG_EQUAL, scanner.EQUAL_EQUAL) {
 		operator := p.tokens[p.current-1]
 		right := p.comparison()
@@ -348,7 +348,6 @@ func (p *Parser) equality() Expr {
 
 func (p *Parser) comparison() Expr {
 	left := p.term()
-
 	for p.match(scanner.GREATER, scanner.GREATER_EQUAL, scanner.LESS, scanner.LESS_EQUAL) {
 		operator := p.tokens[p.current-1]
 		right := p.term()
@@ -360,7 +359,6 @@ func (p *Parser) comparison() Expr {
 
 func (p *Parser) term() Expr {
 	left := p.factor()
-
 	for p.match(scanner.MINUS, scanner.PLUS) {
 		operator := p.tokens[p.current-1]
 		right := p.factor()
@@ -372,7 +370,6 @@ func (p *Parser) term() Expr {
 
 func (p *Parser) factor() Expr {
 	left := p.unary()
-
 	for p.match(scanner.SLASH, scanner.STAR) {
 		operator := p.tokens[p.current-1]
 		right := p.unary()
@@ -394,7 +391,6 @@ func (p *Parser) unary() Expr {
 
 func (p *Parser) call() Expr {
 	expr := p.primary()
-
 	for {
 		if p.match(scanner.LEFT_PAREN) {
 			args, paren := p.arguments()
@@ -460,6 +456,15 @@ func (p *Parser) primary() Expr {
 		return &ThisExpr{previous}
 	}
 
+	if p.match(scanner.SUPER) {
+		keyword := p.tokens[p.current-1]
+		if !p.match(scanner.DOT) || !p.match(scanner.IDENTIFIER) {
+			panic(fault.NewFault(p.tokens[p.current].Line, "expected property access after 'super'"))
+		}
+		method := p.tokens[p.current-1]
+		return &SuperExpr{&keyword, &method}
+	}
+
 	if p.match(scanner.LEFT_PAREN) {
 		e := p.expression()
 		if !p.match(scanner.RIGHT_PAREN) {
@@ -491,9 +496,7 @@ func (p *Parser) match(types ...int) bool {
 
 func (p *Parser) synchronize() {
 	if r := recover(); r != nil {
-		defer func() {
-			p.err = r.(error)
-		}()
+		defer func() { p.err = r.(error) }()
 
 		if p.tokens[p.current].TokenType != scanner.EOF {
 			p.current++
