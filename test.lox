@@ -53,3 +53,22 @@ var counter = makeCounter();
 print counter(); // 1
 print counter(); // 2
 print counter(); // 3
+
+// Classes and inheritance
+class Animal {
+    speak() {
+        print "The animal makes a sound.";
+    }
+}
+
+class Dog < Animal {
+    speak() {
+        print "The dog barks.";
+    }
+}
+
+var animal = Animal();
+animal.speak(); // The animal makes a sound.
+
+var dog = Dog();
+dog.speak(); // The dog barks.

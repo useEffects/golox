@@ -1,5 +1,7 @@
 Golang implementation of a basic tree walk interpreter.
 
+<img src="./assets/screenshot.png" />
+
 Find the binaries for windows, linux and macos under the releases section.
 
 https://craftinginterpreters.com/
